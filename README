@@ -1,0 +1,35 @@
+
+--------------------------------------------------------------
+AD scripts
+--------------------------------------------------------------
+clrdns.sbin
+clrdns.lst
+mirrADcompsLocal.sbin
+mirrADcompsLocal.lst
+--------------------------------------------------------------
+
+These are few scripts useful for dealing with Samba4/Active Directory environment.
+
+Samba 4 is Unix implementaion of Microsoft Active Directory which allows for example Linux servers act as Domain Controllers and file servers using Windows authentication mechanisms, group policies and so on. 
+
+
+clrdns.sbin 
+is a fix for old issue in Samba 4 with recycled dns queries (https://lists.samba.org/archive/samba/2018-November/219505.html).
+Tons of old dns records remain(-ed) in ldap for very long time with no benefit and slow(-ed) server down.
+The script runs for example every midnight by cron and after reaching some limit deletes from ldap a certain number of old dns records.
+
+clrdns.sbin 
+is a list of individual values used by clrdns.sbin.
+
+
+mirrADcompsLocal.sbin
+fixes another old Samba 4 bug. By default Samba fileserver which is a member of Active Directory with another Samba acting as Domain Controller can get list of domain accounts using windbind package. But it does not allow to get list of machine accounts which sometimes are very much needed. This fix is a script which periodically(by cron) connects fileserver to domain controller and mirrors domain machine accounts to local accounts with '$' in the end which is enough for Samba.
+
+mirrADcompsLocal.sbin 
+is a list of individual values used by mirrADcompsLocal.sbin.
+
+
+=== Contacts ================
+e-mail:   buturumus@gmail.com
+telegram: @buturumus
+Alexander

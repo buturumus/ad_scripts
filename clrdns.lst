@@ -1,0 +1,9 @@
+# clrdns.lst
+# link it in clrdns.sbin
+
+ALARM_LIMIT=
+DEL_FIRST_NUM=
+LOGFILE=
+TMP_LIST=
+DB_SUFFIX=
+DOM_SUFFIX=

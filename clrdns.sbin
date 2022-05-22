@@ -1,0 +1,54 @@
+#!/bin/sh
+# clrdns.sbin
+
+# This is a fix for old issue in Samba 4 with recycled dns queries
+# (https://lists.samba.org/archive/samba/2018-November/219505.html).
+# Tons of old dns records remain(-ed) in ldap for very long time
+# with no benefit and slow(-ed) server down.
+#
+# The script runs for example every midnight by cron.
+
+# ALARM_LIMIT=10000
+# DEL_FIRST_NUM=7000
+# LOGFILE=/tmp/clrdns.log
+# TMP_LIST=/tmp/clrdns.lst
+# DB_SUFFIX="DC=EXAMPLE,DC=COM,DC=UA"
+# DOM_SUFFIX="DC=example,DC=com,DC=ua"
+# (don't assign them here but link a private value's list)
+. $(dirname "$0")/clrdns.lst
+
+DB_FILE="/var/lib/samba/private/sam.ldb.d/DC=DOMAINDNSZONES,"$DB_SUFFIX".ldb"
+
+ldbsearch -H $DB_FILE \
+  -b "CN=Deleted Objects,DC=DomainDnsZones,"$DOM_SUFFIX",DC=ua" \
+  "isDeleted=TRUE" \
+  > $TMP_LIST
+
+date > $LOGFILE
+##/etc/init.d/samba stop
+
+ENTRIES_NUM=`grep dn: $TMP_LIST | wc -l`
+echo $ENTRIES_NUM >> $LOGFILE
+if [ ! $ENTRIES_NUM -gt $ALARM_LIMIT ] ; then
+	echo "Number of entries is ok" >> $LOGFILE
+	exit
+fi
+
+echo "Too many entries - working" >> $LOGFILE
+for I in \
+  `grep dn: $TMP_LIST \
+  | head -n $DEL_FIRST_NUM \
+  | sed -r 's/dn: //g' \
+  | sed -r 's/Deleted Objects/DeletedObjects/g' \
+  | sed -r 's/\\\/threeslashes/g'` \
+; do 
+	ldbdel -H $DB_FILE \
+    "`echo $I | sed -r 's/DeletedObjects/Deleted Objects/g' \
+    | sed -r 's/threeslashes.+$//g'`"\\"`echo $I \
+    | sed -r 's/DeletedObjects/Deleted Objects/g' \
+    | sed -r 's/^.+threeslashes//g'`" 
+done
+
+#/etc/init.d/samba start
+date >> $LOGFILE
+

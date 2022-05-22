@@ -1,0 +1,82 @@
+#!/bin/sh
+# mirrADcompsLocal.sbin
+
+# This script syncronizes machine account's list
+# on Samba (AD) Domain Controller and Samba file server.
+# It's partly interactive.
+
+# LOG_FILE=/tmp/dj_courier.log
+# AD_DC=controller1
+# COURIER_USER=waiter
+# BUCK_SIGN_GROUP=admachines
+# START_UID=35001
+# OU1=win7workstations
+# OU2=win10workstations
+# (don't assign them here but link a private value's list)
+. $(dirname "$0")/mirrADcompsLocal.lst
+
+SRV_COMPS_LIST=""
+for OU in $OU1 $OU2 ; do
+  SRV_COMPS_LIST=`/usr/bin/ssh $COURIER_USER@$AD_DC \
+    "sudo /usr/bin/ldbsearch -H /var/lib/samba/private/sam.ldb '(sAMAccountName=*$)' \
+    | grep distinguishedName | grep "$OU" | sed -r 's/^[^=]+=//g' \
+    | sed -r 's/,.+$//g'"`" "$SRV_COMPS_LIST
+done
+echo server list: $SRV_COMPS_LIST
+
+LOCAL_COMPS_LIST=`/usr/bin/getent passwd | grep "$:" | sed -r "s/:.+$//"`
+echo local list: $LOCAL_COMPS_LIST
+
+for I in `echo $SRV_COMPS_LIST` ; do
+  LOCAL_PRESENCE=0
+  for J in `echo $LOCAL_COMPS_LIST` ; do
+    if [ "$I$" = "$J" ] ; then
+      LOCAL_PRESENCE=1
+    fi
+  done
+  if [ $LOCAL_PRESENCE -eq 0 ] ; then
+    /bin/date | /usr/bin/tee -a $LOG_FILE
+    echo "comp "$I"$ is not in local db; adding now:" \
+      | /usr/bin/tee -a $LOG_FILE
+    MAX_UID=$(/usr/bin/getent passwd \
+      | egrep "^[A-Za-z0-9_]+\\$" \
+      | sed -r 's/^[^:]+:[^:]+://g' \
+      | sed -r 's/:.+$//g' \
+      | sort | tail -n1 \
+    )
+    if [ "$MAX_UID" = "" ] ; then
+      MAX_UID=$START_UID
+    else
+      MAX_UID=`expr $MAX_UID + 1`	   
+    fi
+    /usr/sbin/useradd \
+      -u $MAX_UID \
+      -g BUCK_SIGN_GROUP \
+      -d /dev/null \
+      -s /bin/false \
+      -M -p `/usr/bin/pwgen -1` "$I$" \
+      | /usr/bin/tee -a $LOG_FILE
+    echo going on \
+      | /usr/bin/tee -a $LOG_FILE
+  fi    
+done
+
+for I in `echo $LOCAL_COMPS_LIST` ; do
+  SRV_PRESENCE=0
+  for J in `echo $SRV_COMPS_LIST` ; do
+    if [ "$I" = "$J$" ] ; then
+      SRV_PRESENCE=1
+    fi
+  done
+  if [ $SRV_PRESENCE -eq 0 ] ; then
+    /bin/date \
+      | /usr/bin/tee -a $LOG_FILE
+    echo "comp "$I$" is wasted; removing now"  \
+      | /usr/bin/tee -a $LOG_FILE
+    /usr/sbin/userdel "$I" \
+      | /usr/bin/tee -a $LOG_FILE
+    echo going on \
+      | /usr/bin/tee -a $LOG_FILE
+  fi
+done
+

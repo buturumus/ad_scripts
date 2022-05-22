@@ -1,0 +1,10 @@
+# mirrADcompsLocal.lst
+# link it in mirrADcompsLocal.sbin
+
+LOG_FILE=/tmp/dj_courier.log
+AD_DC=
+COURIER_USER=
+BUCK_SIGN_GROUP=
+START_UID=
+OU1=
+OU2=
